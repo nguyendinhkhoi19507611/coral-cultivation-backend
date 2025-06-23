@@ -115,6 +115,7 @@ const bookingSchema = new mongoose.Schema({
       status: String,
       description: String,
       images: [String],
+      videos: [String],
       reportedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
@@ -132,8 +133,143 @@ const bookingSchema = new mongoose.Schema({
       },
       environmentalImpact: String,
       notes: String
+    },
+    // Enhanced tracking data
+    environmentalData: {
+      waterTemperature: [{
+        date: Date,
+        value: Number,
+        unit: String
+      }],
+      phLevel: [{
+        date: Date,
+        value: Number
+      }],
+      visibility: [{
+        date: Date,
+        value: Number,
+        unit: String
+      }],
+      marineLifeCount: [{
+        date: Date,
+        species: String,
+        count: Number
+      }]
     }
   },
+  
+  // Enhanced Experience bookings
+  experienceBookings: [{
+    type: {
+      type: String,
+      enum: ['site_visit', 'diving', 'snorkeling', 'monitoring', 'photography', 'education_tour'],
+      required: true
+    },
+    title: {
+      type: String,
+      required: true
+    },
+    description: String,
+    scheduledDate: {
+      type: Date,
+      required: true
+    },
+    duration: {
+      hours: {
+        type: Number,
+        default: 2
+      },
+      minutes: {
+        type: Number,
+        default: 0
+      }
+    },
+    maxParticipants: {
+      type: Number,
+      default: 10
+    },
+    currentParticipants: {
+      type: Number,
+      default: 0
+    },
+    participants: [{
+      name: String,
+      email: String,
+      phone: String,
+      age: Number,
+      divingLevel: {
+        type: String,
+        enum: ['beginner', 'intermediate', 'advanced', 'professional']
+      },
+      medicalConditions: String
+    }],
+    location: {
+      name: String,
+      coordinates: {
+        latitude: Number,
+        longitude: Number
+      },
+      meetingPoint: String,
+      transportation: String
+    },
+    equipment: [{
+      item: String,
+      quantity: Number,
+      provided: Boolean
+    }],
+    guide: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    status: {
+      type: String,
+      enum: ['scheduled', 'in_progress', 'completed', 'cancelled', 'postponed'],
+      default: 'scheduled'
+    },
+    price: {
+      type: Number,
+      default: 0
+    },
+    weatherConditions: {
+      description: String,
+      windSpeed: Number,
+      waveHeight: Number,
+      visibility: Number,
+      temperature: Number
+    },
+    safetyBriefing: {
+      completed: {
+        type: Boolean,
+        default: false
+      },
+      briefingBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      briefingDate: Date,
+      emergencyProcedures: String
+    },
+    experiencePhotos: [String],
+    experienceVideos: [String],
+    feedback: [{
+      participant: String,
+      rating: Number,
+      comments: String,
+      submittedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    notes: String,
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   
   // Certificate
   certificate: {
@@ -143,32 +279,38 @@ const bookingSchema = new mongoose.Schema({
     },
     certificateUrl: String,
     qrCode: String,
-    generatedAt: Date
+    generatedAt: Date,
+    downloadCount: {
+      type: Number,
+      default: 0
+    }
   },
   
-  // Experience bookings
-  experienceBookings: [{
-    type: {
-      type: String,
-      enum: ['site_visit', 'diving', 'snorkeling', 'monitoring']
-    },
-    scheduledDate: Date,
-    status: {
-      type: String,
-      enum: ['scheduled', 'completed', 'cancelled'],
-      default: 'scheduled'
-    },
-    participants: Number,
-    notes: String
-  }],
-  
-  // Notifications
+  // Enhanced Notifications system
   notifications: [{
     type: {
       type: String,
-      enum: ['booking_confirmed', 'cultivation_started', 'progress_update', 'completed', 'certificate_ready']
+      enum: [
+        'booking_confirmed', 
+        'cultivation_started', 
+        'progress_update', 
+        'completed', 
+        'certificate_ready',
+        'experience_scheduled',
+        'experience_reminder',
+        'experience_completed',
+        'weather_alert',
+        'payment_reminder',
+        'custom'
+      ]
     },
+    title: String,
     message: String,
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'urgent'],
+      default: 'medium'
+    },
     sentAt: {
       type: Date,
       default: Date.now
@@ -176,6 +318,20 @@ const bookingSchema = new mongoose.Schema({
     isRead: {
       type: Boolean,
       default: false
+    },
+    readAt: Date,
+    actionRequired: Boolean,
+    actionUrl: String,
+    expiresAt: Date,
+    channels: [{
+      type: String,
+      enum: ['email', 'sms', 'push', 'in_app']
+    }],
+    metadata: {
+      experienceId: String,
+      progressUpdateId: String,
+      imageUrls: [String],
+      videoUrls: [String]
     }
   }],
   
@@ -184,13 +340,38 @@ const bookingSchema = new mongoose.Schema({
     reason: String,
     cancelledAt: Date,
     refundAmount: Number,
-    refundProcessedAt: Date
+    refundProcessedAt: Date,
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  },
+
+  // Real-time tracking
+  realTimeData: {
+    lastUpdate: Date,
+    isLive: {
+      type: Boolean,
+      default: false
+    },
+    liveStreamUrl: String,
+    sensors: [{
+      type: String,
+      value: mongoose.Schema.Types.Mixed,
+      timestamp: Date,
+      unit: String
+    }]
   }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+// Indexes for better performance
+bookingSchema.index({ user: 1, status: 1 });
+bookingSchema.index({ 'experienceBookings.scheduledDate': 1 });
+bookingSchema.index({ 'notifications.isRead': 1, 'notifications.sentAt': -1 });
 
 // Generate booking number
 bookingSchema.pre('save', async function(next) {
@@ -232,10 +413,102 @@ bookingSchema.virtual('progressPercentage').get(function() {
   return statusMap[this.status] || 0;
 });
 
-// Method to add progress update
-bookingSchema.methods.addProgressUpdate = function(updateData) {
+// Virtual for unread notifications count
+bookingSchema.virtual('unreadNotificationsCount').get(function() {
+  return this.notifications.filter(n => !n.isRead).length;
+});
+
+// Virtual for next experience
+bookingSchema.virtual('nextExperience').get(function() {
+  const upcoming = this.experienceBookings
+    .filter(exp => exp.status === 'scheduled' && exp.scheduledDate > new Date())
+    .sort((a, b) => a.scheduledDate - b.scheduledDate);
+  
+  return upcoming[0] || null;
+});
+
+// Method to add progress update with real-time notification
+bookingSchema.methods.addProgressUpdate = async function(updateData, io) {
   this.cultivation.progress.push(updateData);
-  return this.save();
+  
+  // Add notification
+  const notification = {
+    type: 'progress_update',
+    title: 'Cập nhật tiến độ san hô',
+    message: updateData.description,
+    metadata: {
+      progressUpdateId: this.cultivation.progress[this.cultivation.progress.length - 1]._id,
+      imageUrls: updateData.images || [],
+      videoUrls: updateData.videos || []
+    }
+  };
+  
+  this.notifications.push(notification);
+  
+  await this.save();
+  
+  // Send real-time notification
+  if (io) {
+    io.to(`user_${this.user}`).emit('progress_update', {
+      bookingId: this._id,
+      bookingNumber: this.bookingNumber,
+      update: updateData,
+      notification: notification
+    });
+  }
+  
+  return this;
+};
+
+// Method to schedule experience
+bookingSchema.methods.scheduleExperience = async function(experienceData, io) {
+  this.experienceBookings.push(experienceData);
+  
+  // Add notification
+  const notification = {
+    type: 'experience_scheduled',
+    title: 'Trải nghiệm đã được lên lịch',
+    message: `Trải nghiệm "${experienceData.title}" đã được lên lịch vào ngày ${experienceData.scheduledDate.toLocaleDateString('vi-VN')}`,
+    actionRequired: true,
+    actionUrl: `/experiences/${this.experienceBookings[this.experienceBookings.length - 1]._id}`,
+    metadata: {
+      experienceId: this.experienceBookings[this.experienceBookings.length - 1]._id
+    }
+  };
+  
+  this.notifications.push(notification);
+  
+  await this.save();
+  
+  // Send real-time notification
+  if (io) {
+    io.to(`user_${this.user}`).emit('experience_scheduled', {
+      bookingId: this._id,
+      experience: experienceData,
+      notification: notification
+    });
+  }
+  
+  return this;
+};
+
+// Method to mark notification as read
+bookingSchema.methods.markNotificationRead = async function(notificationId, io) {
+  const notification = this.notifications.id(notificationId);
+  if (notification) {
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await this.save();
+    
+    // Send real-time update
+    if (io) {
+      io.to(`user_${this.user}`).emit('notification_read', {
+        notificationId,
+        bookingId: this._id
+      });
+    }
+  }
+  return this;
 };
 
 // Method to generate certificate
@@ -260,6 +533,51 @@ bookingSchema.statics.getStats = function(userId = null) {
         totalAmount: { $sum: '$totalAmount' }
       }
     }
+  ]);
+};
+
+// Static method to get upcoming experiences
+bookingSchema.statics.getUpcomingExperiences = function(daysAhead = 7) {
+  const startDate = new Date();
+  const endDate = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+  
+  return this.aggregate([
+    {
+      $match: {
+        'experienceBookings.scheduledDate': {
+          $gte: startDate,
+          $lte: endDate
+        },
+        'experienceBookings.status': 'scheduled'
+      }
+    },
+    { $unwind: '$experienceBookings' },
+    {
+      $match: {
+        'experienceBookings.scheduledDate': {
+          $gte: startDate,
+          $lte: endDate
+        },
+        'experienceBookings.status': 'scheduled'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'userInfo'
+      }
+    },
+    {
+      $lookup: {
+        from: 'packages',
+        localField: 'package',
+        foreignField: '_id',
+        as: 'packageInfo'
+      }
+    },
+    { $sort: { 'experienceBookings.scheduledDate': 1 } }
   ]);
 };
 
