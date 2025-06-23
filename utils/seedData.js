@@ -334,6 +334,9 @@ const seedDatabase = async () => {
         package: packages[0]._id,
         quantity: 2,
         unitPrice: packages[0].price,
+        // Thêm các trường bắt buộc
+        totalAmount: packages[0].price * 2,
+        bookingNumber: `CR${Date.now()}0001`,
         contactInfo: {
           name: customer1.name,
           email: customer1.email,
@@ -367,6 +370,9 @@ const seedDatabase = async () => {
         package: packages[1]._id,
         quantity: 1,
         unitPrice: packages[1].price,
+        // Thêm các trường bắt buộc
+        totalAmount: packages[1].price,
+        bookingNumber: `CR${Date.now()}0002`,
         contactInfo: {
           name: customer2.name,
           email: customer2.email,
@@ -409,21 +415,70 @@ const seedDatabase = async () => {
           isGenerated: true,
           generatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
         }
+      },
+      // Thêm booking cho business
+      {
+        user: business1._id,
+        package: packages[2]._id,
+        quantity: 5,
+        unitPrice: packages[2].price,
+        totalAmount: packages[2].price * 5 * 0.9, // 10% discount cho business
+        bookingNumber: `CR${Date.now()}0003`,
+        contactInfo: {
+          name: business1.businessInfo.companyName,
+          email: business1.email,
+          phone: business1.phone,
+          address: business1.businessInfo.address,
+          specialRequests: 'Đặt theo gói corporate, cần báo cáo chi tiết cho báo cáo CSR'
+        },
+        businessBooking: {
+          isBusinessBooking: true,
+          businessName: business1.businessInfo.companyName,
+          referralCode: business1.businessInfo.referralCode,
+          groupSize: 5,
+          corporateDiscount: 10
+        },
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        paidAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        cultivation: {
+          startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          estimatedCompletionDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000), // 18 months
+          location: packages[2].location,
+          progress: [
+            {
+              status: 'confirmed',
+              description: 'Corporate booking được xác nhận, chuẩn bị bắt đầu dự án',
+              reportedBy: users[0]._id
+            }
+          ]
+        }
       }
     ];
 
-    for (const bookingData of sampleBookings) {
-      const booking = new Booking(bookingData);
-      await booking.save();
-      
-      // Update package booking count
-      const package = await Package.findById(booking.package);
-      package.currentBookings += booking.quantity;
-      package.totalBookings += booking.quantity;
-      package.totalRevenue += booking.totalAmount;
-      await package.save();
-      
-      console.log(`🎫 Created booking: ${booking.bookingNumber}`);
+    // Tạo bookings với error handling tốt hơn
+    const createdBookings = [];
+    for (let i = 0; i < sampleBookings.length; i++) {
+      try {
+        const bookingData = sampleBookings[i];
+        const booking = new Booking(bookingData);
+        
+        // Validate trước khi save
+        await booking.validate();
+        await booking.save();
+        createdBookings.push(booking);
+        
+        // Update package booking count
+        const package = await Package.findById(booking.package);
+        package.currentBookings += booking.quantity;
+        package.totalBookings += booking.quantity;
+        package.totalRevenue += booking.totalAmount;
+        await package.save();
+        
+        console.log(`🎫 Created booking: ${booking.bookingNumber} (${booking.status})`);
+      } catch (error) {
+        console.error(`❌ Failed to create booking ${i + 1}:`, error.message);
+      }
     }
 
     // Create sample reviews
