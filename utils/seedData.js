@@ -1,3 +1,4 @@
+// utils/seedData.js - Fixed version
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
@@ -263,7 +264,7 @@ const seedData = {
   ]
 };
 
-// Enhanced sample bookings data
+// Enhanced sample bookings data - FIXED VERSION
 const createSampleBookings = async (users, packages) => {
   console.log('📋 Creating sample bookings...');
   
@@ -294,6 +295,7 @@ const createSampleBookings = async (users, packages) => {
       package: packages[0]._id,
       quantity: 2,
       unitPrice: packages[0].price,
+      totalAmount: packages[0].price * 2, // FIX: Calculate totalAmount
       contactInfo: {
         name: customer1.name,
         email: customer1.email,
@@ -345,6 +347,7 @@ const createSampleBookings = async (users, packages) => {
       package: packages[1]._id,
       quantity: 1,
       unitPrice: packages[1].price,
+      totalAmount: packages[1].price, // FIX: Calculate totalAmount
       contactInfo: {
         name: customer2.name,
         email: customer2.email,
@@ -416,6 +419,7 @@ const createSampleBookings = async (users, packages) => {
       package: packages[2]._id,
       quantity: 1,
       unitPrice: packages[2].price,
+      totalAmount: packages[2].price, // FIX: Calculate totalAmount
       contactInfo: {
         name: customer3.name,
         email: customer3.email,
@@ -444,11 +448,17 @@ const createSampleBookings = async (users, packages) => {
   }
 
   if (business1) {
+    // Calculate corporate discount
+    const baseAmount = packages[0].price * 5;
+    const discountAmount = baseAmount * 0.1; // 10% discount
+    const finalAmount = baseAmount - discountAmount;
+
     sampleBookings.push({
       user: business1._id,
       package: packages[0]._id,
       quantity: 5,
       unitPrice: packages[0].price,
+      totalAmount: finalAmount, // FIX: Calculate totalAmount with discount
       contactInfo: {
         name: business1.businessInfo.companyName,
         email: business1.email,
@@ -567,7 +577,7 @@ const createSampleReviews = async (users, packages, bookings) => {
   return sampleReviews;
 };
 
-// Create sample notifications
+// Create sample notifications - FIXED VERSION
 const createSampleNotifications = async (users, bookings) => {
   console.log('🔔 Creating sample notifications...');
   
@@ -588,7 +598,7 @@ const createSampleNotifications = async (users, bookings) => {
       message: 'Hệ thống sẽ được bảo trì từ 2:00 - 4:00 sáng ngày mai.',
       priority: 'medium',
       icon: 'wrench',
-      color: 'blue',
+      color: 'blue', // FIX: Use valid color
       channels: ['in_app', 'email'],
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       sender: admin._id,
@@ -601,7 +611,7 @@ const createSampleNotifications = async (users, bookings) => {
       message: 'Giảm 20% cho gói Soft Coral Hạ Long trong tháng 3.',
       priority: 'low',
       icon: 'gift',
-      color: 'green',
+      color: 'green', // FIX: Use valid color
       actionButton: {
         text: 'Xem gói ưu đãi',
         url: '/packages/soft-coral-ha-long'
@@ -618,7 +628,7 @@ const createSampleNotifications = async (users, bookings) => {
       message: 'Chúc mừng! Chứng nhận bảo tồn san hô của bạn đã được tạo thành công.',
       priority: 'high',
       icon: 'award',
-      color: 'gold',
+      color: 'yellow', // FIX: Use valid color instead of 'gold'
       actionRequired: true,
       actionButton: {
         text: 'Tải chứng nhận',
@@ -674,7 +684,7 @@ const seedDatabase = async () => {
       console.log(`✅ Created package: ${package.name}`);
     }
 
-    // Create bookings
+    // Create bookings with proper validation
     console.log('🎫 Creating bookings...');
     const sampleBookings = await createSampleBookings(users, packages);
     const createdBookings = [];
@@ -682,6 +692,12 @@ const seedDatabase = async () => {
     for (let i = 0; i < sampleBookings.length; i++) {
       try {
         const bookingData = sampleBookings[i];
+        
+        // Generate booking number before saving
+        const count = await Booking.countDocuments();
+        const bookingNumber = `CR${Date.now()}${String(count + 1).padStart(4, '0')}`;
+        bookingData.bookingNumber = bookingNumber;
+        
         const booking = new Booking(bookingData);
         
         await booking.validate();
@@ -702,6 +718,7 @@ const seedDatabase = async () => {
         console.log(`✅ Created booking: ${booking.bookingNumber} (${booking.status})`);
       } catch (error) {
         console.error(`❌ Failed to create booking ${i + 1}:`, error.message);
+        console.error('Full error:', error);
       }
     }
 
@@ -730,6 +747,7 @@ const seedDatabase = async () => {
         console.log(`✅ Created notification: ${notification.title}`);
       } catch (error) {
         console.error(`❌ Failed to create notification:`, error.message);
+        console.error('Notification data:', notificationData);
       }
     }
 
@@ -884,11 +902,16 @@ const createTestScenarios = async () => {
     await soldOutPackage.save();
     
     // Create cancelled booking for testing
+    const count = await Booking.countDocuments();
+    const bookingNumber = `CR${Date.now()}${String(count + 1).padStart(4, '0')}`;
+    
     const cancelledBooking = new Booking({
       user: customer._id,
       package: soldOutPackage._id,
       quantity: 1,
       unitPrice: soldOutPackage.price,
+      totalAmount: soldOutPackage.price, // FIX: Add totalAmount
+      bookingNumber: bookingNumber, // FIX: Add bookingNumber
       contactInfo: {
         name: customer.name,
         email: customer.email,
