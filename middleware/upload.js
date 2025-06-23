@@ -1,8 +1,6 @@
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../utils/cloudinary');
-
-// Cloudinary storage configuration
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -15,42 +13,29 @@ const storage = new CloudinaryStorage({
     ]
   }
 });
-
-// File filter function
 const fileFilter = (req, file, cb) => {
-  // Check file type
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
     cb(new Error('Only image files are allowed!'), false);
   }
 };
-
-// Multer configuration
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 10 // Maximum 10 files
+    fileSize: 5 * 1024 * 1024, 
+    files: 10 
   }
 });
-
-// Middleware for single image upload
 const uploadSingle = upload.single('image');
-
-// Middleware for multiple images upload
 const uploadMultiple = upload.array('images', 10);
-
-// Middleware for mixed uploads (different field names)
 const uploadFields = upload.fields([
   { name: 'images', maxCount: 10 },
   { name: 'avatar', maxCount: 1 },
   { name: 'logo', maxCount: 1 },
   { name: 'businessLicense', maxCount: 1 }
 ]);
-
-// Enhanced upload middleware with error handling
 const uploadImages = (req, res, next) => {
   uploadMultiple(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -77,8 +62,6 @@ const uploadImages = (req, res, next) => {
     next();
   });
 };
-
-// Single image upload with error handling
 const uploadSingleImage = (req, res, next) => {
   uploadSingle(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -95,8 +78,6 @@ const uploadSingleImage = (req, res, next) => {
     next();
   });
 };
-
-// User profile uploads (avatar, business documents)
 const uploadProfile = (req, res, next) => {
   uploadFields(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -118,8 +99,6 @@ const uploadProfile = (req, res, next) => {
     next();
   });
 };
-
-// Delete image from cloudinary
 const deleteImage = async (publicId) => {
   try {
     const result = await cloudinary.uploader.destroy(publicId);
@@ -129,15 +108,11 @@ const deleteImage = async (publicId) => {
     throw error;
   }
 };
-
-// Extract public ID from cloudinary URL
 const extractPublicId = (url) => {
   const parts = url.split('/');
   const filename = parts[parts.length - 1];
   return filename.split('.')[0];
 };
-
-// Resize image utility
 const resizeImage = async (publicId, width, height) => {
   try {
     const result = await cloudinary.uploader.explicit(publicId, {

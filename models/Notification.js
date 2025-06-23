@@ -1,8 +1,5 @@
-// models/Notification.js
 const mongoose = require('mongoose');
-
 const notificationSchema = new mongoose.Schema({
-  // Recipient information
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -13,8 +10,6 @@ const notificationSchema = new mongoose.Schema({
     enum: ['user', 'admin', 'business', 'all'],
     default: 'user'
   },
-  
-  // Notification content
   type: {
     type: String,
     enum: [
@@ -33,65 +28,49 @@ const notificationSchema = new mongoose.Schema({
     ],
     required: true
   },
-  
   title: {
     type: String,
     required: true,
     maxlength: 100
   },
-  
   message: {
     type: String,
     required: true,
     maxlength: 500
   },
-  
   shortMessage: {
     type: String,
     maxlength: 100
   },
-  
-  // Priority and urgency
   priority: {
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],
     default: 'medium'
   },
-  
-  // Visual elements
   icon: {
     type: String,
     default: 'bell'
   },
-  
   color: {
     type: String,
     enum: ['blue', 'green', 'yellow', 'red', 'purple', 'gray'],
     default: 'blue'
   },
-  
   image: String,
-  
-  // Action information
   actionRequired: {
     type: Boolean,
     default: false
   },
-  
   actionButton: {
     text: String,
     url: String,
     action: String
   },
-  
-  // Delivery channels
   channels: [{
     type: String,
     enum: ['email', 'sms', 'push', 'in_app', 'webhook'],
     default: 'in_app'
   }],
-  
-  // Delivery status
   deliveryStatus: {
     email: {
       sent: { type: Boolean, default: false },
@@ -125,40 +104,26 @@ const notificationSchema = new mongoose.Schema({
       viewedAt: Date
     }
   },
-  
-  // Read status
   isRead: {
     type: Boolean,
     default: false
   },
-  
   readAt: Date,
-  
-  // Scheduling
   scheduledFor: Date,
-  
   isScheduled: {
     type: Boolean,
     default: false
   },
-  
-  // Expiry
   expiresAt: Date,
-  
-  // Related entities
   relatedBooking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking'
   },
-  
   relatedPackage: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Package'
   },
-  
-  relatedExperience: String, // Experience ID within booking
-  
-  // Metadata
+  relatedExperience: String, 
   metadata: {
     campaignId: String,
     groupId: String,
@@ -168,20 +133,15 @@ const notificationSchema = new mongoose.Schema({
     source: String,
     customData: mongoose.Schema.Types.Mixed
   },
-  
-  // Sender information
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  
   senderType: {
     type: String,
     enum: ['system', 'admin', 'automated'],
     default: 'system'
   },
-  
-  // Analytics
   analytics: {
     impressions: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },
@@ -193,44 +153,32 @@ const notificationSchema = new mongoose.Schema({
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
-
-// Indexes for performance
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ type: 1, createdAt: -1 });
 notificationSchema.index({ scheduledFor: 1, isScheduled: 1 });
 notificationSchema.index({ expiresAt: 1 });
 notificationSchema.index({ 'metadata.campaignId': 1 });
-
-// Virtual for time ago
 notificationSchema.virtual('timeAgo').get(function() {
   const now = new Date();
   const diff = now - this.createdAt;
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  
   if (days > 0) return `${days} ngày trước`;
   if (hours > 0) return `${hours} giờ trước`;
   if (minutes > 0) return `${minutes} phút trước`;
   return 'Vừa xong';
 });
-
-// Virtual for is expired
 notificationSchema.virtual('isExpired').get(function() {
   return this.expiresAt && this.expiresAt < new Date();
 });
-
-// Method to mark as read
 notificationSchema.methods.markAsRead = async function(io) {
   if (!this.isRead) {
     this.isRead = true;
     this.readAt = new Date();
     this.deliveryStatus.inApp.viewed = true;
     this.deliveryStatus.inApp.viewedAt = new Date();
-    
     await this.save();
-    
-    // Send real-time update
     if (io) {
       io.to(`user_${this.recipient}`).emit('notification_read', {
         notificationId: this._id,
@@ -238,14 +186,10 @@ notificationSchema.methods.markAsRead = async function(io) {
       });
     }
   }
-  
   return this;
 };
-
-// Method to track interaction
 notificationSchema.methods.trackInteraction = async function(interactionType = 'click') {
   this.analytics.lastInteraction = new Date();
-  
   if (interactionType === 'click') {
     this.analytics.clicks += 1;
   } else if (interactionType === 'impression') {
@@ -253,17 +197,12 @@ notificationSchema.methods.trackInteraction = async function(interactionType = '
   } else if (interactionType === 'conversion') {
     this.analytics.conversions += 1;
   }
-  
   await this.save();
   return this;
 };
-
-// Static method to create and send notification
 notificationSchema.statics.createAndSend = async function(notificationData, io) {
   const notification = new this(notificationData);
   await notification.save();
-  
-  // Send real-time notification
   if (io) {
     io.to(`user_${notification.recipient}`).emit('new_notification', {
       notification: notification.toObject(),
